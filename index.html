@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Functional Dependencies Checker</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.css" integrity="sha384-9eLZqc9ds8eNjO3TmqPeYcDj8n+Qfa4nuSiGYa6DjLNcv9BtN69ZIulL9+8CqC9Y" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.js" integrity="sha384-K3vbOmF2BtaVai+Qk37uypf7VrgBubhQreNQe9aGsz9lB63dIFiQVlJbr92dw2Lx" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<script defer src="js/jquery-3.3.1.min.js"></script>
+<script defer src="js/popper.min.js"></script>
+<script defer src="js/bootstrap.min.js"></script>
+<script defer src="js/functionaldeps.js"></script>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <h1 class="navbar-brand">Functional Dependencies Checker</h1>
+</nav>
+<div class="container" style="margin-top: 20px">
+
+    <div class="row">
+            <div class="card col-md-12">
+                <div class="card-body">
+                <div class="form-group">
+                    <label>Enter Functional Dependencies in the form of <code>{a,b,c}->{d}, {d}->{a}</code></label>
+                    <input id="functional_deps" type="textarea" class="form-control"/>
+                </div>
+                    <div id="errorbox"></div>
+                    <nav>
+                        <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                            <a class="nav-item nav-link active" id="nav-home-tab" data-toggle="tab" href="#attribute_closures" role="tab" aria-controls="nav-home" aria-selected="true">Attribute Closure</a>
+                            <a class="nav-item nav-link" id="nav-profile-tab" data-toggle="tab" href="#nav-profile" role="tab" aria-controls="nav-profile" aria-selected="false">Functional Dependency Closure</a>
+                            <a class="nav-item nav-link" id="nav-contact-tab" data-toggle="tab" href="#nav-contact" role="tab" aria-controls="nav-contact" aria-selected="false">Minimal Cover</a>
+                            <a class="nav-item nav-link" id="nav-nfs-tab" data-toggle="tab" href="#nav-nfs" role="tab" aria-controls="nav-nfs" aria-selected="false">Normal Forms</a>
+                        </div>
+                    </nav>
+                    <div class="tab-content" id="nav-tabContent">
+                        <div class="tab-pane fade show active" id="attribute_closures" role="tabpanel" aria-labelledby="nav-home-tab">...</div>
+                        <div class="tab-pane fade" id="nav-profile" role="tabpanel" aria-labelledby="nav-profile-tab">...</div>
+                        <div class="tab-pane fade" id="nav-contact" role="tabpanel" aria-labelledby="nav-contact-tab">...</div>
+                        <div class="tab-pane fade" id="nav-nfs" role="tabpanel" aria-labelledby="nav-nfs-tab">...</div>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+</div>
+</body>
+</html>
