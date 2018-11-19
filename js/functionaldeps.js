@@ -53,6 +53,27 @@ function FunctionalDependency(lhs, rhs){
         str += "}";
         return str;
     };
+
+    this.toLatex = function () {
+        str = "\\{";
+        for(var i = 0 ; i  < this.lhs.length; i++){
+            str += this.lhs[i];
+            if(i+1 !== this.lhs.length)
+                str += ", ";
+        }
+        str += "\\}  \\rightarrow \\{";
+        for(var i = 0 ; i  < this.rhs.length; i++){
+            str += this.rhs[i];
+            if(i+1 !== this.rhs.length)
+                str += ", ";
+        }
+        str += "\\}";
+        return str;
+    };
+
+    this.isTrivial = function () {
+      return isSubset(rhs,new Set(lhs));
+    };
 }
 
 /**
@@ -116,8 +137,262 @@ function RelationalSchema(fdList){
         return allClosures;
     };
 
+    /**
+     * Returns the functional dependency closure on F+
+     */
+    this.closure = function () {
+        var attrClosure = this.allAttributeClosures();
+        var Fplus = [];
+        for(var i = 0; i < attrClosure.length; i++){
+
+            if(attrClosure[i].length === 0)
+                continue;
+
+            var left = attrClosure[i][0];
+            var right = [];
+
+            attrClosure[i][1].forEach(function (val) {
+                right.push(val);
+            });
+
+            var options  = powerSet(right);
+
+            for(var j = 0; j < options.length; j++){
+                if(options[j].length > 0)
+                    Fplus.push(new FunctionalDependency(left, options[j]));
+            }
+        }
+
+        return Fplus;
+    };
+
+    this.lookUpAttributeClosure = function(key) {
+        var attrClosure = this.allAttributeClosures();
+        for(var i = 0; i < attrClosure.length; i++){
+            if(arrayEquals(attrClosure[i][0], key)){
+                return setToArray(attrClosure[i][1]);
+            }
+        }
+        return [];
+    };
+
+    this.minimize = function (key) {
+        var closureLength = this.extractAttributes().size;
+        for(var i = 0; i < key.length; i++){
+            var newKey = key.slice();
+            newKey.splice(i,1);
+            if(closureLength === this.lookUpAttributeClosure(newKey).length){
+                return this.minimize(newKey);
+            }
+        }
+        return key;
+    };
+
+    this.canMinimize = function (key) {
+        var closureLength = this.extractAttributes().size;
+        for(var i = 0; i < key.length; i++){
+            var newKey = key.slice();
+            newKey.splice(i,1);
+            if(closureLength === this.lookUpAttributeClosure(newKey).length){
+                return true;
+            }
+        }
+        return false;
+    };
+
+    /**
+     * Returns all candidate keys
+     */
+    this.candidateKeys = function(){
+        var candidateKeyList = [this.minimize(setToArray(this.extractAttributes()))];
+        var closure = this.closure();
+        for(var i = 0 ; i < candidateKeyList.length; i++){
+            for(var j = 0; j < closure.length; j++){
+                var potentialKey = setUnion(new Set(closure[j].lhs), new Set(setDifference(new Set(candidateKeyList[i]), new Set(closure[j].rhs))));
+                var found = false;
+                for(var k = 0; k < candidateKeyList.length; k++){
+                    if(isSubset(candidateKeyList[k], new Set(potentialKey)))
+                        found = true;
+                }
+
+                if(!found){
+                    candidateKeyList.push(this.minimize(potentialKey));
+                }
+
+            }
+        }
+        return candidateKeyList;
+    };
+
+    /**
+     * Returns all superkeys
+     */
+    this.superKeys = function(){
+        var candidateKeyList = [];
+        var numberOfAttributes = this.extractAttributes().size;
+        var attrClosure = this.allAttributeClosures();
+        attrClosure.sort(function (a, b) { return b[0].length - a[0].length });
+        attrClosure.reverse();
+        for(var i = 0; i < attrClosure.length; i++){
+            var rhs = [];
+            attrClosure[i][1].forEach(function (val) {
+                rhs.push(val);
+            });
+
+            if(rhs.length === numberOfAttributes) {
+                candidateKeyList.push(attrClosure[i][0]);
+            }
+        }
+        return candidateKeyList;
+    };
+    /**
+     * Returns true if is in second nf
+     * i.e.
+     * Given X->A in F+
+     *   X->A is trivial
+     *   or X is not a proper subset of candidate keys
+     *   or A is part of some candidate key
+     */
+    this.isSecondNF = function() {
+        var fdClosure = this.closure();
+        var candidateKeys = this.candidateKeys();
+        for(var i = 0 ; i < fdClosure.length; i++){
+
+            if(fdClosure[i].isTrivial())
+                continue;
+
+            var isNotProperSubsetOfCandidateKeys = false;
+            for(var j = 0; j < candidateKeys.length; j++){
+                if(!isProperSubset(fdClosure[i].lhs, new Set(candidateKeys[j])))
+                    isNotProperSubsetOfCandidateKeys = true;
+            }
+            if(isNotProperSubsetOfCandidateKeys)
+                continue;
+
+            var isPartOfCandidateKey = false;
+            for(var j = 0; j < candidateKeys.length; j++){
+                if(isSubset(fdClosure[i].rhs, new Set(candidateKeys[j])))
+                    isPartOfCandidateKey = true;
+            }
+            if(isPartOfCandidateKey)
+                continue;
+
+            console.log(fdClosure[i].toString() + " violates BCNF" );
+            return false;
+        }
+        return true;
+    };
+
+    /**
+     * Checks is relation is in third normal form
+     * i.e.
+     * Given X->A in F+
+     *   X->A is trivial
+     *   X is a superkey for R
+     *   A is part of some candidate key
+     */
+    this.isThirdNF = function () {
+        var fdClosure = this.closure();
+        var candidateKeys = this.candidateKeys();
+        var superKeys = this.superKeys();
+        console.log(superKeys);
+        for(var i = 0 ; i < fdClosure.length; i++){
+
+            if(fdClosure[i].isTrivial())
+                continue;
+
+            var isSuperKey = false;
+            for(var j = 0; j < superKeys.length; j++) {
+                if(fdClosure[i].lhs.length !== superKeys[j].length)
+                    continue;
+
+                var ident = true;
+                superKeys[j].sort();
+                fdClosure[i].lhs.sort();
+
+                for(var k = 0; k < superKeys[j].length; k++){
+                    if(superKeys[j][k] !== fdClosure[i].lhs[k]){
+                        console.log("Checking "+fdClosure[i].lhs+", "+superKeys[j]);
+                        ident = false;
+                    }
+                }
+                if(ident) isSuperKey = true;
+            }
+            if(isSuperKey) continue;
+
+            var isPartOfCK = false;
+            for(var  j = 0 ; j < candidateKeys.length; j++){
+                if(isSubset(fdClosure[i].rhs, new Set(candidateKeys[i])))
+                    isPartOfCK = true;
+            }
+            if(isPartOfCK) continue;
+
+            console.log(fdClosure[i].toString() + " violates 3nf" );
+            return false;
+        }
+        return true;
+    };
+
+    /**
+     * Checks is relation is in Boyce-Codd normal form
+     * i.e.
+     * Given X->A in F+
+     *   X->A is trivial
+     *   X->A is a super key
+     */
+    this.isBCNF = function () {
+        var fdClosure = this.closure();
+        for(var i = 0 ; i < fdClosure.length; i++){
+            var candidateKeys = this.candidateKeys();
+            console.log(candidateKeys);
+            for(var i = 0 ; i < fdClosure.length; i++){
+
+                if(fdClosure[i].isTrivial())
+                    continue;
+
+                var isSuperKey = false;
+                for(var j = 0; j < candidateKeys.length; j++){
+                    if(isSubset(candidateKeys[j], new Set(fdClosure[i].lhs)))
+                        isSuperKey = true;
+                }
+                if(isSuperKey) continue;
+
+                console.log(fdClosure[i].toString() + " violates BCNF" );
+                return false;
+            }
+            return true;
+        }
+    };
 }
 
+/**
+ * Check if two arrays are the same. WTF does JS not have an in-built method for this?
+ * @param arr1
+ * @param arr2
+ */
+function arrayEquals(arr1, arr2){
+
+    if(arr1.length !== arr2.length)
+        return false;
+
+    for(var  i = 0 ; i < arr1.length; i++){
+        if(arr1[i] !== arr2[i])
+            return false;
+    }
+
+    return true;
+}
+
+/**
+ * Convert a set to array
+ */
+function setToArray(set){
+    var arr = [];
+    set.forEach(function (val) {
+        arr.push(val);
+    });
+    return arr;
+}
 /**
  * Check if a subset is a subset of another set
  * @param subset - The set you are checking
@@ -133,6 +408,56 @@ function isSubset(subset, superset){
     return true;
 }
 
+/**
+ * Proper subset
+ * @param subset
+ * @param superdet
+ */
+function isProperSubset(subset, superset) {
+    return (subset.length < superset.length) && isSubset(subset,superset);
+}
+
+
+/**
+ * Find the set difference between two sets. i.e. set1 - set2
+ * @param set1
+ * @param set2
+ */
+function setDifference(set1, set2) {
+    var newSet = [];
+    set1.forEach(function (val) {
+        if(!set2.has(val)){
+            newSet.push(val);
+        }
+    });
+    return newSet;
+}
+
+/**
+ * Find the set union between two sets
+ * @param set1
+ * @param set2
+ */
+function setUnion(set1, set2) {
+    var newSet = new Set();
+    set1.forEach(function (val) {
+        newSet.add(val);
+    });
+    set2.forEach(function (val) {
+        newSet.add(val);
+    });
+    var asArray = [];
+    newSet.forEach(function (val) {
+        asArray.push(val);
+    });
+    return asArray;
+}
+
+/**
+ * Returns the prowerSet of a list
+ * @param lst - the list
+ * @returns {Array}
+ */
 function powerSet(lst) {
     function fork(i, t) {
         if (i === lst.length) {
@@ -146,6 +471,8 @@ function powerSet(lst) {
     fork(0, []);
     return result;
 }
+
+
 
 var ParserStates = {
     no_input: 1,
@@ -252,11 +579,11 @@ function parseAttributes(input){
 
 /**
  * Renders the attribute closures and marks them as and when they are needed.
- * @param attrs
- * @param numberOfAttributes
+ * @param attrs - The attribute closure.
+ * @param numberOfAttributes - The number of attributes in the relation.
+ * @param relation - The relation of interest
  */
-function renderAttributeClosures(attrs, numberOfAttributes){
-    var candidateLength = -1;
+function renderAttributeClosures(attrs, numberOfAttributes, relation){
     var htmlString = "<ul>";
     attrs.sort(function (a, b) { return b[0].length - a[0].length });
     attrs.reverse();
@@ -290,12 +617,11 @@ function renderAttributeClosures(attrs, numberOfAttributes){
         });
 
         if(rhs.length === numberOfAttributes){
-            if(candidateLength === -1 || candidateLength === attrs[i][0].length){
-                candidateLength = attrs[i][0].length;
-                htmlString += "<span class='btn btn-success'>Candidate Key</span>";
+            if(!relation.canMinimize(attrs[i][0])){
+                htmlString += "<span class='badge badge-success'>Candidate Key</span>";
             }
             else {
-                htmlString += "<span class='btn btn-outline-success'>Super Key</span>";
+                htmlString += "<span class='badge badge-info'>Super Key</span>";
             }
         }
 
@@ -305,24 +631,68 @@ function renderAttributeClosures(attrs, numberOfAttributes){
     document.getElementById("attribute_closures").innerHTML = htmlString;
 }
 
-window.onload =function (ev) {
-    var input = document.getElementById("functional_deps");
-    console.log("hi");
-    input.addEventListener("change", function (evt) {
-        try {
-            fds = parseAttributes(input.value);
-            console.log("got "+fds.length+" values");
-            for (var j = 0; j < fds.length; j++) {
-                console.log(fds[j].toString());
-            }
-            var relationalSchema = new RelationalSchema(fds);
-            var attributeClosures = relationalSchema.allAttributeClosures();
-            renderAttributeClosures(attributeClosures, relationalSchema.extractAttributes().size);
-            console.log(attributeClosures);
-            document.getElementById("errorbox").innerHTML = "";
-        } catch (e) {
-            console.error("Failed to parse input" + e);
-            document.getElementById("errorbox").innerHTML = e;
+function renderFunctionalClosure(closure){
+    var htmlString = "<p>The following elements are in F+:</p><ul>";
+    for(var i = 0 ; i < closure.length; i++){
+        htmlString += "<li>";
+        htmlString += katex.renderToString(closure[i].toLatex(), {
+            throwOnError: false
+        });
+        if(closure[i].isTrivial()){
+            htmlString += "<span class='badge badge-dark'>Trivial</span>";
         }
-     });
-};
+        htmlString += "</li>";
+    }
+    htmlString += "</ul>";
+    document.getElementById("fd_closure").innerHTML = htmlString;
+}
+
+function renderNF(warning, id){
+    if(warning) {
+        try {
+            document.getElementById(id).classList.add("list-group-item-success");
+            document.getElementById(id).classList.remove("list-group-item-danger");
+        } catch (e) {
+        }
+
+    } else {
+        try {
+            document.getElementById(id).classList.add("list-group-item-danger");
+            document.getElementById(id).classList.remove("list-group-item-success");
+        } catch (e) {
+        }
+    }
+}
+
+try {
+    window.onload = function (ev) {
+        var input = document.getElementById("functional_deps");
+        console.log("hi");
+        input.addEventListener("change", function (evt) {
+            try {
+                fds = parseAttributes(input.value);
+                console.log("got " + fds.length + " values");
+                for (var j = 0; j < fds.length; j++) {
+                    console.log(fds[j].toString());
+                }
+                var relationalSchema = new RelationalSchema(fds);
+                var attributeClosures = relationalSchema.allAttributeClosures();
+                renderAttributeClosures(attributeClosures, relationalSchema.extractAttributes().size, relationalSchema);
+                renderFunctionalClosure(relationalSchema.closure());
+
+                renderNF(relationalSchema.isSecondNF(), "2NF");
+                renderNF(relationalSchema.isThirdNF(), "3NF");
+                renderNF(relationalSchema.isBCNF(), "BCNF");
+                document.getElementById("errorbox").innerHTML = "";
+            } catch (e) {
+                console.error("Failed to parse input" + e);
+                document.getElementById("errorbox").innerHTML = e;
+            }
+        });
+    };
+} catch (e){
+    console.log("Running in headless mode on node");
+    module.exports = {};
+    module.exports.FunctionalDependency= FunctionalDependency;
+    module.exports.RelationalSchema = RelationalSchema;
+}
