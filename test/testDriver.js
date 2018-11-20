@@ -53,7 +53,7 @@ describe('RelationalSchema', function() {
            var fd2 = new fdlib.FunctionalDependency(["b","c"], ["a","d"]);
            var fd3 = new fdlib.FunctionalDependency(["d"], ["b"]);
            var relationalSchema = new fdlib.RelationalSchema([fd1,fd2,fd3]);
-           assert.equal(relationalSchema.isSecondNF(), true)
+           assert.equal(relationalSchema.isSecondNF(), true);
            assert.equal(relationalSchema.isThirdNF(), true);
            assert.equal(relationalSchema.isBCNF(), false);
        });
@@ -62,9 +62,14 @@ describe('RelationalSchema', function() {
     describe('#isSecondNF', function () {
         it('Correctly classifies relation as not 2nf', function () {
             var fd1 = new fdlib.FunctionalDependency(["a", "d"], ["b","c"]);
-            var fd2 = new fdlib.FunctionalDependency(["b"], ["a"]);
+            var fd2 = new fdlib.FunctionalDependency(["d"], ["b"]);
             var relationalSchema = new fdlib.RelationalSchema([fd1,fd2]);
             assert.equal(relationalSchema.isSecondNF(), false);
+        });
+        it('Correctly classifies relation as 2nf', function () {
+            var fd1 = new fdlib.FunctionalDependency(["a", "d"], ["b","c"]);
+            var relationalSchema = new fdlib.RelationalSchema([fd1]);
+            assert.equal(relationalSchema.isSecondNF(), true);
         });
     });
 
@@ -103,5 +108,29 @@ describe('RelationalSchema', function() {
         });
     })
 
+});
+
+describe('FunctionalDependency', function () {
+   describe('#isTrivial', function () {
+       it('An FD of form b->b is trivial correctly', function () {
+           var fd1 = new fdlib.FunctionalDependency(["b"], ["b"]);
+           assert.equal(fd1.isTrivial(), true);
+       });
+       it('An FD of form ab->b is trivial correctly', function () {
+           var fd1 = new fdlib.FunctionalDependency(["a","b"], ["b"]);
+           assert.equal(fd1.isTrivial(), true);
+       });
+       it('An FD of form a->b is not trivial correctly', function () {
+           var fd1 = new fdlib.FunctionalDependency(["a"], ["b"]);
+           assert.equal(fd1.isTrivial(), false);
+       });
+   });
+
+    describe('#decomposeRHS', function () {
+        it('An FD of form b->ba is decomposed correctly', function () {
+            var fd1 = new fdlib.FunctionalDependency(["b"], ["a","c"]);
+            assert.equal(fd1.decomposeRHS().length,2);
+        });
+    })
 });
 

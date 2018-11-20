@@ -55,13 +55,13 @@ function FunctionalDependency(lhs, rhs){
     };
 
     this.toLatex = function () {
-        str = "\\{";
+        str = "\\{ ";
         for(var i = 0 ; i  < this.lhs.length; i++){
             str += this.lhs[i];
             if(i+1 !== this.lhs.length)
                 str += ", ";
         }
-        str += "\\}  \\rightarrow \\{";
+        str += "\\}  \\rightarrow \\{ ";
         for(var i = 0 ; i  < this.rhs.length; i++){
             str += this.rhs[i];
             if(i+1 !== this.rhs.length)
@@ -76,9 +76,10 @@ function FunctionalDependency(lhs, rhs){
     };
     
     this.decomposeRHS = function (){
-        fds = [];
+        var fds = [];
+        var lhs = this.lhs;
         this.rhs.forEach(function (val) {
-            fds.push(new FunctionalDependency(this.lhs,[val]));
+            fds.push(new FunctionalDependency(lhs,[val]));
         });
         return fds;
     }
@@ -234,7 +235,7 @@ function RelationalSchema(fdList){
         for(var i = 0; i < key.length; i++){
             var newKey = key.slice();
             newKey.splice(i,1);
-            if(arrayEquals(this.lookUpAttributeClosure(newKey),cover)){
+            if(arrayEquals(this.lookUpAttributeClosure(newKey).sort(),cover.sort())){
                 return this.minimizeWithCover(newKey, cover);
             }
         }
@@ -298,6 +299,25 @@ function RelationalSchema(fdList){
         return candidateKeyList;
     };
 
+    this.isProperSubsetCK = function (fd) {
+        var candidateKeys = this.candidateKeys();
+        for(var j = 0; j < candidateKeys.length; j++){
+            if(isProperSubset(fd.lhs, new Set(candidateKeys[j]))) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    this.hasPrimeAttr = function (fd) {
+        var primeAttributes = this.primeAttributes();
+        for(var j = 0; j < fd.rhs.length; j++){
+            if(!primeAttributes.has(fd.rhs[j])) {
+                return false;
+            }
+        }
+        return true;
+    };
     /**
      * Returns true if is in second nf
      * i.e.
@@ -308,23 +328,22 @@ function RelationalSchema(fdList){
      */
     this.isSecondNF = function() {
         var fdClosure = this.closure();
-        var candidateKeys = this.candidateKeys();
-        var primeAttributes = this.primeAttributes();
+
 
         for(var i = 0 ; i < fdClosure.length; i++){
 
             if(fdClosure[i].isTrivial())
                 continue;
 
-            for(var j = 0; j < candidateKeys.length; j++){
-                if(isProperSubset(fdClosure[i].lhs, new Set(candidateKeys[j])))
-                    return false;
-            }
+            if(!this.isProperSubsetCK(fdClosure[i]))
+                continue;
 
-            for(var j = 0; j < fdClosure[i].rhs.length; j++){
-                if(!primeAttributes.has(fdClosure[i].rhs[j]))
-                    return false;
-            }
+
+            if(this.hasPrimeAttr(fdClosure[i]))
+                continue;
+
+            console.log(fdClosure[i]+" Violated 2NF");
+            return false;
         }
         return true;
     };
@@ -409,22 +428,34 @@ function RelationalSchema(fdList){
         }
         return true;
     };
-    
+
+    this.eliminateDependencies = function(dependencies) {
+        for(var i = 0; i < dependencies.length; i++){
+            var tmpCopy = dependencies.slice();
+            var dep =tmpCopy.splice(i,1);
+            if(this.equals(new RelationalSchema(tmpCopy)))
+                return this.eliminateDependencies(tmpCopy);
+        }
+        return dependencies;
+    };
+
     this.minimalCover = function () {
 
         var simplifiedRHS = [];
-        for(var i = 0; i < fdList.length; i++){
+        for (var i = 0; i < fdList.length; i++) {
             var decomp = fdList[i].decomposeRHS();
             decomp.forEach(function (value) {
-                simplifiedRHS.push(value);
+                if (!value.isTrivial()) simplifiedRHS.push(value);
             });
         }
 
         var simplifiedLHS = [];
-        simplifiedRHS.forEach(function (value) {
-             var newLHS = this.minimizeWithCover(value.lhs, value.rhs);
-             simplifiedLHS.push(new FunctionalDependency(newLHS,value.rhs));
-        });
+        for (var i = 0; i < simplifiedRHS.length; i++) {
+            var newLHS = this.minimizeWithCover(simplifiedRHS[i].lhs,this.lookUpAttributeClosure(simplifiedRHS[i].lhs));
+            simplifiedLHS.push(new FunctionalDependency(newLHS, simplifiedRHS[i].rhs));
+        }
+
+        return new RelationalSchema(this.eliminateDependencies(simplifiedLHS));
 
     };
 
@@ -475,8 +506,21 @@ function RelationalSchema(fdList){
             }
         }
         return true;
+    };
 
-    }
+    /**
+     * Convert to latex
+     */
+    this.toLatex = function () {
+        var str = "\\{ ";
+        for(var  i = 0; i < fdList.length; i++){
+            str += fdList[i].toLatex();
+            if(i + 1 !== fdList.length)
+                str += ", \\allowbreak";
+        }
+        str += "\\}";
+        return str;
+    };
 }
 
 /**
@@ -528,7 +572,7 @@ function isSubset(subset, superset){
  * @param superset
  */
 function isProperSubset(subset, superset) {
-    return (subset.length < superset.length) && isSubset(subset,superset);
+    return (subset.length < superset.size) && isSubset(subset,superset);
 }
 
 
@@ -787,14 +831,9 @@ function renderNF(warning, id){
 try {
     window.onload = function (ev) {
         var input = document.getElementById("functional_deps");
-        console.log("hi");
         input.addEventListener("change", function (evt) {
             try {
                 fds = parseAttributes(input.value);
-                console.log("got " + fds.length + " values");
-                for (var j = 0; j < fds.length; j++) {
-                    console.log(fds[j].toString());
-                }
                 var relationalSchema = new RelationalSchema(fds);
                 var attributeClosures = relationalSchema.allAttributeClosures();
                 renderAttributeClosures(attributeClosures, relationalSchema.extractAttributes().size, relationalSchema);
@@ -804,6 +843,9 @@ try {
                 renderNF(relationalSchema.isThirdNF(), "3NF");
                 renderNF(relationalSchema.isBCNF(), "BCNF");
                 document.getElementById("errorbox").innerHTML = "";
+                document.getElementById("min_cover").innerHTML = katex.renderToString(relationalSchema.minimalCover().toLatex(), {
+                    throwOnError: false
+                });
             } catch (e) {
                 console.error("Failed to parse input" + e);
                 document.getElementById("errorbox").innerHTML = e;
