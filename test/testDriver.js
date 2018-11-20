@@ -47,4 +47,25 @@ describe('RelationalSchema', function() {
            }
        })
     });
+    describe('#isThirdNF', function () {
+       it('Correctly classifies relation as 3NF but not BCNF', function () {
+           var fd1 = new fdlib.FunctionalDependency(["a"], ["b","c","d"]);
+           var fd2 = new fdlib.FunctionalDependency(["b","c"], ["a","d"]);
+           var fd3 = new fdlib.FunctionalDependency(["d"], ["b"]);
+           var relationalSchema = new fdlib.RelationalSchema([fd1,fd2,fd3]);
+           assert.equal(relationalSchema.isSecondNF(), true)
+           assert.equal(relationalSchema.isThirdNF(), true);
+           assert.equal(relationalSchema.isBCNF(), false);
+       })
+    });
+
+    describe('#isSecondNF', function () {
+        it('Correctly classifies relation as not 2nf', function () {
+            var fd1 = new fdlib.FunctionalDependency(["a", "d"], ["b","c"]);
+            var fd2 = new fdlib.FunctionalDependency(["b"], ["a"]);
+            var relationalSchema = new fdlib.RelationalSchema([fd1,fd2]);
+            assert.equal(relationalSchema.isSecondNF(), false);
+        })
+    });
 });
+

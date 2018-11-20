@@ -72,8 +72,17 @@ function FunctionalDependency(lhs, rhs){
     };
 
     this.isTrivial = function () {
-      return isSubset(rhs,new Set(lhs));
+        return isSubset(this.rhs,new Set(this.lhs));
     };
+    
+    this.decomposeRHS = function (){
+        fds = [];
+        this.rhs.forEach(function (val) {
+            fds.push(new FunctionalDependency(this.lhs,[val]));
+        });
+        return fds;
+    }
+
 }
 
 /**
@@ -166,6 +175,11 @@ function RelationalSchema(fdList){
         return Fplus;
     };
 
+    /**
+     * Looks up the possible attributes given a current set.
+     * @param key
+     * @returns {Array}
+     */
     this.lookUpAttributeClosure = function(key) {
         var attrClosure = this.allAttributeClosures();
         for(var i = 0; i < attrClosure.length; i++){
@@ -176,6 +190,11 @@ function RelationalSchema(fdList){
         return [];
     };
 
+    /**
+     * Minimizes a key
+     * @param key
+     * @returns {*}
+     */
     this.minimize = function (key) {
         var closureLength = this.extractAttributes().size;
         for(var i = 0; i < key.length; i++){
@@ -188,6 +207,11 @@ function RelationalSchema(fdList){
         return key;
     };
 
+    /**
+     * Checks if a key can be further minimized
+     * @param key
+     * @returns {boolean}
+     */
     this.canMinimize = function (key) {
         var closureLength = this.extractAttributes().size;
         for(var i = 0; i < key.length; i++){
@@ -198,6 +222,23 @@ function RelationalSchema(fdList){
             }
         }
         return false;
+    };
+
+    /**
+     * Minimize a certain relation with cover.
+     * @param key
+     * @param cover
+     * @returns {*}
+     */
+    this.minimizeWithCover = function (key, cover) {
+        for(var i = 0; i < key.length; i++){
+            var newKey = key.slice();
+            newKey.splice(i,1);
+            if(arrayEquals(this.lookUpAttributeClosure(newKey),cover)){
+                return this.minimizeWithCover(newKey, cover);
+            }
+        }
+        return key;
     };
 
     /**
@@ -216,12 +257,23 @@ function RelationalSchema(fdList){
                 }
 
                 if(!found){
-                    candidateKeyList.push(this.minimize(potentialKey));
+                    candidateKeyList.push(this.minimize(potentialKey).sort());
                 }
 
             }
         }
         return candidateKeyList;
+    };
+
+    this.primeAttributes = function () {
+        var attributes = new Set();
+        var candidateKeys = this.candidateKeys();
+        for(var i = 0; i < candidateKeys.length; i++){
+            candidateKeys[i].forEach(function (val) {
+                attributes.add(val);
+            });
+        }
+        return attributes;
     };
 
     /**
@@ -245,6 +297,7 @@ function RelationalSchema(fdList){
         }
         return candidateKeyList;
     };
+
     /**
      * Returns true if is in second nf
      * i.e.
@@ -256,29 +309,22 @@ function RelationalSchema(fdList){
     this.isSecondNF = function() {
         var fdClosure = this.closure();
         var candidateKeys = this.candidateKeys();
+        var primeAttributes = this.primeAttributes();
+
         for(var i = 0 ; i < fdClosure.length; i++){
 
             if(fdClosure[i].isTrivial())
                 continue;
 
-            var isNotProperSubsetOfCandidateKeys = false;
             for(var j = 0; j < candidateKeys.length; j++){
-                if(!isProperSubset(fdClosure[i].lhs, new Set(candidateKeys[j])))
-                    isNotProperSubsetOfCandidateKeys = true;
+                if(isProperSubset(fdClosure[i].lhs, new Set(candidateKeys[j])))
+                    return false;
             }
-            if(isNotProperSubsetOfCandidateKeys)
-                continue;
 
-            var isPartOfCandidateKey = false;
-            for(var j = 0; j < candidateKeys.length; j++){
-                if(isSubset(fdClosure[i].rhs, new Set(candidateKeys[j])))
-                    isPartOfCandidateKey = true;
+            for(var j = 0; j < fdClosure[i].rhs.length; j++){
+                if(!primeAttributes.has(fdClosure[i].rhs[j]))
+                    return false;
             }
-            if(isPartOfCandidateKey)
-                continue;
-
-            console.log(fdClosure[i].toString() + " violates BCNF" );
-            return false;
         }
         return true;
     };
@@ -293,9 +339,8 @@ function RelationalSchema(fdList){
      */
     this.isThirdNF = function () {
         var fdClosure = this.closure();
-        var candidateKeys = this.candidateKeys();
         var superKeys = this.superKeys();
-        console.log(superKeys);
+        var primeAttributes = this.primeAttributes();
         for(var i = 0 ; i < fdClosure.length; i++){
 
             if(fdClosure[i].isTrivial())
@@ -312,7 +357,6 @@ function RelationalSchema(fdList){
 
                 for(var k = 0; k < superKeys[j].length; k++){
                     if(superKeys[j][k] !== fdClosure[i].lhs[k]){
-                        console.log("Checking "+fdClosure[i].lhs+", "+superKeys[j]);
                         ident = false;
                     }
                 }
@@ -320,15 +364,10 @@ function RelationalSchema(fdList){
             }
             if(isSuperKey) continue;
 
-            var isPartOfCK = false;
-            for(var  j = 0 ; j < candidateKeys.length; j++){
-                if(isSubset(fdClosure[i].rhs, new Set(candidateKeys[i])))
-                    isPartOfCK = true;
+            for(var j = 0; j < fdClosure[i].rhs.length; j++){
+                if(!primeAttributes.has(fdClosure[i].rhs[j]))
+                    return false;
             }
-            if(isPartOfCK) continue;
-
-            console.log(fdClosure[i].toString() + " violates 3nf" );
-            return false;
         }
         return true;
     };
@@ -342,27 +381,68 @@ function RelationalSchema(fdList){
      */
     this.isBCNF = function () {
         var fdClosure = this.closure();
+        var superKeys = this.superKeys();
         for(var i = 0 ; i < fdClosure.length; i++){
-            var candidateKeys = this.candidateKeys();
-            console.log(candidateKeys);
-            for(var i = 0 ; i < fdClosure.length; i++){
 
-                if(fdClosure[i].isTrivial())
+            if(fdClosure[i].isTrivial())
+                continue;
+
+            var isSuperKey = false;
+            for(var j = 0; j < superKeys.length; j++) {
+                if(fdClosure[i].lhs.length !== superKeys[j].length)
                     continue;
 
-                var isSuperKey = false;
-                for(var j = 0; j < candidateKeys.length; j++){
-                    if(isSubset(candidateKeys[j], new Set(fdClosure[i].lhs)))
-                        isSuperKey = true;
-                }
-                if(isSuperKey) continue;
+                var ident = true;
+                superKeys[j].sort();
+                fdClosure[i].lhs.sort();
 
-                console.log(fdClosure[i].toString() + " violates BCNF" );
-                return false;
+                for(var k = 0; k < superKeys[j].length; k++){
+                    if(superKeys[j][k] !== fdClosure[i].lhs[k]){
+                        ident = false;
+                    }
+                }
+                if(ident) isSuperKey = true;
             }
-            return true;
+            if(isSuperKey) continue;
+
+            return false;
         }
+        return true;
     };
+    
+    this.minimalCover = function () {
+
+        var simplifiedRHS = [];
+        for(var i = 0; i < fdList.length; i++){
+            var decomp = fdList[i].decomposeRHS();
+            decomp.forEach(function (value) {
+                simplifiedRHS.push(value);
+            });
+        }
+
+        var simplifiedLHS = [];
+        simplifiedRHS.forEach(function (value) {
+             var newLHS = this.minimizeWithCover(value.lhs, value.rhs);
+             simplifiedLHS.push(new FunctionalDependency(newLHS,value.rhs));
+        });
+
+
+    };
+
+    /**
+     * Checks if to relational schemas are equal
+     * @param other
+     * @returns {boolean}
+     */
+    this.equals = function (other) {
+        if(other.constructor !== this.constructor)
+            return false;
+
+        var othersAttributeClosures = other.allAttributeClosures();
+        var myAttributeClosures = this.allAttributeClosures();
+
+
+    }
 }
 
 /**
@@ -411,7 +491,7 @@ function isSubset(subset, superset){
 /**
  * Proper subset
  * @param subset
- * @param superdet
+ * @param superset
  */
 function isProperSubset(subset, superset) {
     return (subset.length < superset.length) && isSubset(subset,superset);
