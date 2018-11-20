@@ -45,7 +45,7 @@ describe('RelationalSchema', function() {
                var implies = relationalSchema.lookUpAttributeClosure(results[i]);
                assert.equal(implies.length, 4); //Check all are keys
            }
-       })
+       });
     });
     describe('#isThirdNF', function () {
        it('Correctly classifies relation as 3NF but not BCNF', function () {
@@ -56,7 +56,7 @@ describe('RelationalSchema', function() {
            assert.equal(relationalSchema.isSecondNF(), true)
            assert.equal(relationalSchema.isThirdNF(), true);
            assert.equal(relationalSchema.isBCNF(), false);
-       })
+       });
     });
 
     describe('#isSecondNF', function () {
@@ -65,7 +65,43 @@ describe('RelationalSchema', function() {
             var fd2 = new fdlib.FunctionalDependency(["b"], ["a"]);
             var relationalSchema = new fdlib.RelationalSchema([fd1,fd2]);
             assert.equal(relationalSchema.isSecondNF(), false);
-        })
+        });
     });
+
+    describe('#equals', function () {
+        it('Correctly identifies identical relations', function () {
+            var fd1 = new fdlib.FunctionalDependency(["a", "d"], ["b","c"]);
+            var fd2 = new fdlib.FunctionalDependency(["b"], ["a"]);
+            var relationalSchema = new fdlib.RelationalSchema([fd1,fd2]);
+
+            var fd11 = new fdlib.FunctionalDependency(["a", "d"], ["b","c"]);
+            var fd12 = new fdlib.FunctionalDependency(["b"], ["a"]);
+            var relationalSchema2 = new fdlib.RelationalSchema([fd12,fd11]);
+
+            assert.equal(relationalSchema.equals(relationalSchema2), true);
+        });
+
+        it('Correctly identifies unequal relations', function () {
+            var fd1 = new fdlib.FunctionalDependency(["a", "d"], ["b","c"]);
+            var fd2 = new fdlib.FunctionalDependency(["b"], ["a"]);
+            var relationalSchema = new fdlib.RelationalSchema([fd1,fd2]);
+
+            var fd11 = new fdlib.FunctionalDependency(["a", "d"], ["b","c"]);
+            var relationalSchema2 = new fdlib.RelationalSchema([fd11]);
+
+            assert.equal(relationalSchema.equals(relationalSchema2), false);
+        });
+
+        it('Correctly identifies relations with same closure but different description', function () {
+            var fd1 = new fdlib.FunctionalDependency(["a"], ["b"]);
+            var fd2 = new fdlib.FunctionalDependency(["a","b"], ["b"]);
+            var relationalSchema = new fdlib.RelationalSchema([fd1,fd2]);
+
+            var fd11 = new fdlib.FunctionalDependency(["a"], ["b"]);
+            var relationalSchema2 = new fdlib.RelationalSchema([fd11]);
+            assert.equal(relationalSchema.equals(relationalSchema2), true);
+        });
+    })
+
 });
 

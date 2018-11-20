@@ -142,7 +142,7 @@ function RelationalSchema(fdList){
         powSet = powerSet(attrArray);
         var allClosures = [];
         for(var i = 0; i < powSet.length; i++)
-            allClosures.push([powSet[i], this.attributeClosure(new Set(powSet[i]))]);
+            allClosures.push([powSet[i].sort(), this.attributeClosure(new Set(powSet[i]))]);
         return allClosures;
     };
 
@@ -183,7 +183,7 @@ function RelationalSchema(fdList){
     this.lookUpAttributeClosure = function(key) {
         var attrClosure = this.allAttributeClosures();
         for(var i = 0; i < attrClosure.length; i++){
-            if(arrayEquals(attrClosure[i][0], key)){
+            if(arrayEquals(attrClosure[i][0].sort(), key.sort())){
                 return setToArray(attrClosure[i][1]);
             }
         }
@@ -426,7 +426,6 @@ function RelationalSchema(fdList){
              simplifiedLHS.push(new FunctionalDependency(newLHS,value.rhs));
         });
 
-
     };
 
     /**
@@ -441,6 +440,41 @@ function RelationalSchema(fdList){
         var othersAttributeClosures = other.allAttributeClosures();
         var myAttributeClosures = this.allAttributeClosures();
 
+        if(othersAttributeClosures.length !== myAttributeClosures.length)
+            return false;
+
+        othersAttributeClosures.sort(function (a, b) {
+            var dist = b[0].length - a[0].length;
+            if(dist !== 0)
+                return dist;
+            else
+                return (""+b[0]).localeCompare(""+a[0]);
+        });
+
+        myAttributeClosures.sort(function (a, b) {
+            var dist = b[0].length - a[0].length;
+            if(dist !== 0)
+                return dist;
+            else
+                return (""+b[0]).localeCompare(""+a[0]);
+        });
+
+        for(var i = 0; i < myAttributeClosures.length; i++){
+            if(""+othersAttributeClosures[i][0] !== ""+myAttributeClosures[i][0])
+                return false;
+
+            var o1 = setToArray(othersAttributeClosures[i][1]).sort();
+            var o2 = setToArray(myAttributeClosures[i][1]).sort();
+
+            if(o1.length !== o2.length)
+                return false;
+
+            for(var j = 0; j < o1.length; j++){
+                if(o1[j] !== o2[j])
+                    return false;
+            }
+        }
+        return true;
 
     }
 }
@@ -665,7 +699,13 @@ function parseAttributes(input){
  */
 function renderAttributeClosures(attrs, numberOfAttributes, relation){
     var htmlString = "<ul>";
-    attrs.sort(function (a, b) { return b[0].length - a[0].length });
+    attrs.sort(function (a, b) {
+        var dist = b[0].length - a[0].length;
+        if(dist !== 0)
+            return dist;
+        else
+            return (""+b[0]).localeCompare(""+a[0]);
+    });
     attrs.reverse();
     for(var i = 0; i < attrs.length; i++){
         htmlString += "<li>";
