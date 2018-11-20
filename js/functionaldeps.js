@@ -429,6 +429,96 @@ function RelationalSchema(fdList){
         return true;
     };
 
+    /**
+     * Checks if a FunctionalDependency violates 2NF
+     * @param fd
+     * @returns {boolean}
+     */
+    this.violates2NF = function (fd) {
+        if(fd.isTrivial())
+            return false;
+
+        if(!this.isProperSubsetCK(fd))
+            return false;
+
+        if(this.hasPrimeAttr(fd))
+            return false;
+
+        return true;
+    };
+
+    /**
+     * Checks if a FunctionalDependency violates 3NF
+     * @param fd
+     * @returns {boolean}
+     */
+    this.violates3NF = function (fd) {
+        var superKeys = this.superKeys();
+        var primeAttributes = this.primeAttributes();
+        if(fd.isTrivial())
+            return false;
+
+        var isSuperKey = false;
+        for(var j = 0; j < superKeys.length; j++) {
+            if(fd.lhs.length !== superKeys[j].length)
+                continue;
+
+            var ident = true;
+            superKeys[j].sort();
+            fd.lhs.sort();
+
+            for(var k = 0; k < superKeys[j].length; k++){
+                if(superKeys[j][k] !== fd.lhs[k]){
+                    ident = false;
+                }
+            }
+            if(ident) isSuperKey = true;
+        }
+        if(isSuperKey) return false;
+
+        for(var j = 0; j < fd.rhs.length; j++){
+            if(!primeAttributes.has(fd.rhs[j]))
+                return true;
+        }
+    };
+
+    /**
+     * Given an FunctionalDependency check if it violates BCNF
+     * @param fd
+     * @returns {boolean}
+     */
+    this.violatesBCNF = function (fd) {
+        var superKeys = this.superKeys();
+
+        if(fd.isTrivial())
+            return false;
+
+        var isSuperKey = false;
+        for(var j = 0; j < superKeys.length; j++) {
+            if(fd.lhs.length !== superKeys[j].length)
+                continue;
+
+            var ident = true;
+            superKeys[j].sort();
+            fd.lhs.sort();
+
+            for(var k = 0; k < superKeys[j].length; k++){
+                if(superKeys[j][k] !== fd.lhs[k]){
+                    ident = false;
+                }
+            }
+            if(ident) isSuperKey = true;
+        }
+        if(isSuperKey) return false;
+
+        return true;
+    };
+
+    /**
+     * Eliminates unnecessary dependencies.
+     * @param dependencies
+     * @returns {*}
+     */
     this.eliminateDependencies = function(dependencies) {
         for(var i = 0; i < dependencies.length; i++){
             var tmpCopy = dependencies.slice();
@@ -439,6 +529,10 @@ function RelationalSchema(fdList){
         return dependencies;
     };
 
+    /**
+     * Calculates the minimal cover of a set
+     * @returns {RelationalSchema}
+     */
     this.minimalCover = function () {
 
         var simplifiedRHS = [];
@@ -795,8 +889,15 @@ function renderAttributeClosures(attrs, numberOfAttributes, relation){
     document.getElementById("attribute_closures").innerHTML = htmlString;
 }
 
-function renderFunctionalClosure(closure){
+/**
+ * Renders F+, when given a set of FD.
+ * @param closure
+ * @param relation
+ */
+function renderFunctionalClosure(closure, relation){
     var htmlString = "<p>The following elements are in F+:</p><ul>";
+    var secondnf = relation.isSecondNF();
+    var thirdnf = relation.isThirdNF();
     for(var i = 0 ; i < closure.length; i++){
         htmlString += "<li>";
         htmlString += katex.renderToString(closure[i].toLatex(), {
@@ -805,6 +906,23 @@ function renderFunctionalClosure(closure){
         if(closure[i].isTrivial()){
             htmlString += "<span class='badge badge-dark'>Trivial</span>";
         }
+
+        if(!secondnf){
+            if(relation.violates2NF(closure[i])){
+                htmlString += "<span class='badge badge-danger'>violates 2NF</span>";
+            }
+        } else {
+            if(!thirdnf){
+                if(relation.violates3NF(closure[i])){
+                    htmlString += "<span class='badge badge-danger'>violates 3NF</span>";
+                }
+            } else {
+                if(relation.violatesBCNF(closure[i])){
+                    htmlString += "<span class='badge badge-danger'>violates BCNF</span>";
+                }
+            }
+        }
+
         htmlString += "</li>";
     }
     htmlString += "</ul>";
@@ -837,7 +955,7 @@ try {
                 var relationalSchema = new RelationalSchema(fds);
                 var attributeClosures = relationalSchema.allAttributeClosures();
                 renderAttributeClosures(attributeClosures, relationalSchema.extractAttributes().size, relationalSchema);
-                renderFunctionalClosure(relationalSchema.closure());
+                renderFunctionalClosure(relationalSchema.closure(), relationalSchema);
 
                 renderNF(relationalSchema.isSecondNF(), "2NF");
                 renderNF(relationalSchema.isThirdNF(), "3NF");
