@@ -93,6 +93,9 @@ function FunctionalDependency(lhs, rhs){
  */
 function RelationalSchema(fdList){
     this.functionalDependencies = fdList;
+    this._attrClosure = null;
+    this._functionClosure = null;
+    this._candidateKeys = null;
 
     /**
      * This returns the attributes within the schema.
@@ -135,6 +138,10 @@ function RelationalSchema(fdList){
      * Returns all possible attribute closures within the schema
      */
     this.allAttributeClosures = function () {
+
+        if(this._attrClosure !== null)
+            return this._attrClosure;
+
         var attributes = this.extractAttributes();
         var attrArray = [];
         attributes.forEach( function(attr){
@@ -144,6 +151,9 @@ function RelationalSchema(fdList){
         var allClosures = [];
         for(var i = 0; i < powSet.length; i++)
             allClosures.push([powSet[i].sort(), this.attributeClosure(new Set(powSet[i]))]);
+
+        this._attrClosure = allClosures;
+
         return allClosures;
     };
 
@@ -151,6 +161,10 @@ function RelationalSchema(fdList){
      * Returns the functional dependency closure on F+
      */
     this.closure = function () {
+
+        if(this._functionClosure !== null)
+            return this._functionClosure;
+
         var attrClosure = this.allAttributeClosures();
         var Fplus = [];
         for(var i = 0; i < attrClosure.length; i++){
@@ -172,6 +186,8 @@ function RelationalSchema(fdList){
                     Fplus.push(new FunctionalDependency(left, options[j]));
             }
         }
+
+        this._functionClosure = Fplus;
 
         return Fplus;
     };
@@ -246,6 +262,10 @@ function RelationalSchema(fdList){
      * Returns all candidate keys
      */
     this.candidateKeys = function(){
+
+        if(this._candidateKeys !== null)
+            return this._candidateKeys;
+
         var candidateKeyList = [this.minimize(setToArray(this.extractAttributes()))];
         var closure = this.closure();
         for(var i = 0 ; i < candidateKeyList.length; i++){
@@ -263,6 +283,9 @@ function RelationalSchema(fdList){
 
             }
         }
+
+        this._candidateKeys = candidateKeyList;
+
         return candidateKeyList;
     };
 
@@ -553,6 +576,16 @@ function RelationalSchema(fdList){
 
     };
 
+    this.project = function (atrributes) {
+    };
+
+    this.decomposeTo3NF = function () {
+
+    };
+
+    this.decomposeToBCNF = function () {
+
+    };
     /**
      * Checks if to relational schemas are equal
      * @param other
@@ -956,7 +989,6 @@ try {
                 var attributeClosures = relationalSchema.allAttributeClosures();
                 renderAttributeClosures(attributeClosures, relationalSchema.extractAttributes().size, relationalSchema);
                 renderFunctionalClosure(relationalSchema.closure(), relationalSchema);
-
                 renderNF(relationalSchema.isSecondNF(), "2NF");
                 renderNF(relationalSchema.isThirdNF(), "3NF");
                 renderNF(relationalSchema.isBCNF(), "BCNF");
