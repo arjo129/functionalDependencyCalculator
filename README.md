@@ -5,7 +5,7 @@ Live version is availabe here:
 https://arjo129.github.io/functionalDependencyCalculator/index.html
 
 
-![example_page_pv](example.png)
+![example_page_pv](docs/example.png)
 
 # Features
 
