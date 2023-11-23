@@ -10,7 +10,7 @@ https://arjo129.github.io/functionalDependencyCalculator/index.html
 # Features
 
 - Calculate Attribute Closure (F+) of FDs via [superkey identification](js/functionaldeps.js#L117)
-- Calculate FD Closure via [powerset construction](js/functionaldeps.js#L161)co
+- Calculate FD Closure via [powerset construction](js/functionaldeps.js#L161)
 - Calculate Minimal Cover via [attribute reduction](js/functionaldeps.js#L556)
 - Check Normal Forms (2NF, 3NF, BCNF) via [normal form decomposition](js/functionaldeps.js#L352)
 
