@@ -1,4 +1,4 @@
-var fdlib = require("../js/functionaldeps");
+var fdlib = require("../js/calculate-lib");
 
 var assert = require('assert');
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Functional Dependencies Checker</title>
     <link rel="stylesheet" href="css/bootstrap.min.css"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/katex.min.css" integrity="sha384-9eLZqc9ds8eNjO3TmqPeYcDj8n+Qfa4nuSiGYa6DjLNcv9BtN69ZIulL9+8CqC9Y" crossorigin="anonymous">
@@ -13,6 +13,7 @@
 <script defer src="js/jquery-3.3.1.min.js"></script>
 <script defer src="js/popper.min.js"></script>
 <script defer src="js/bootstrap.min.js"></script>
+<script defer src="js/virtual-scroller.js"></script>
 <script defer src="js/functionaldeps.js"></script>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <h1 class="navbar-brand">Functional Dependencies Checker</h1>
@@ -25,6 +26,7 @@
                 <div class="form-group">
                     <label>Enter Functional Dependencies in the form of <code>{a,b,c}->{d}, {d}->{a}</code></label>
                     <input id="functional_deps" type="textarea" class="form-control"/>
+                    <span class="badge badge-primary" style="visibility: hidden" id="badge-calculating">Calculating...</span>
                 </div>
                     <div id="errorbox"></div>
                     <nav>
@@ -36,10 +38,16 @@
                         </div>
                     </nav>
                     <div class="tab-content" id="nav-tabContent">
-                        <div class="tab-pane fade show active" id="attribute_closures" role="tabpanel" aria-labelledby="nav-home-tab"></div>
-                        <div class="tab-pane fade" id="fd_closure" role="tabpanel" aria-labelledby="nav-profile-tab"></div>
-                        <div class="tab-pane fade" id="min_cover" role="tabpanel" aria-labelledby="nav-contact-tab"></div>
-                        <div class="tab-pane fade" id="nav-nfs" role="tabpanel" aria-labelledby="nav-nfs-tab">
+                        <div class="tab-pane show active" id="attribute_closures" role="tabpanel" aria-labelledby="nav-home-tab">
+                            <div style="max-height: 480px; overflow-y: scroll" id="attribute_closures_content">
+                            </div>
+                        </div>
+                        <div class="tab-pane" id="fd_closure" role="tabpanel" aria-labelledby="nav-profile-tab">
+                            <div style="max-height: 480px; overflow-y: scroll" id="fd_closure_content">
+                            </div>
+                        </div>
+                        <div class="tab-pane" id="min_cover" role="tabpanel" aria-labelledby="nav-contact-tab"></div>
+                        <div class="tab-pane" id="nav-nfs" role="tabpanel" aria-labelledby="nav-nfs-tab">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item" id="2NF">Second Normal Form</li>
                                 <li class="list-group-item" id="3NF">Third Normal Form</li>
