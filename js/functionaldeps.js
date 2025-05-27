@@ -407,7 +407,7 @@ function RelationalSchema(fdList){
             if(isSuperKey) continue;
 
             for(var j = 0; j < fdClosure[i].rhs.length; j++){
-                if(!primeAttributes.has(fdClosure[i].rhs[j]))
+                if(!fdClosure[i].lhs.includes(fdClosure[i].rhs[j]) && !primeAttributes.has(fdClosure[i].rhs[j]))
                     return false;
             }
         }
